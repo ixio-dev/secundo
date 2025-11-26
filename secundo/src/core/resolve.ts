@@ -36,70 +36,102 @@ export function resolveInterpreter(spec: SecundoSpec | null, meta: ProjectMeta):
   throw new Error('Could not detect interpreter. Please specify in secundo.spec')
 }
 
-export async function resolveEntrypoint(
-  spec: SecundoSpec | null,
-  meta: ProjectMeta,
-  projectDir: string
-): Promise<string> {
-  // Spec override
-  if (spec?.entry) {
-    return spec.entry
-  }
-
-  // Node.js: check bin field
-  if (meta.packageJson?.bin) {
-    if (typeof meta.packageJson.bin === 'string') {
-      return meta.packageJson.bin
-    } else if (typeof meta.packageJson.bin === 'object') {
-      // Take first bin entry
-      const bins = Object.values(meta.packageJson.bin)
+function resolveNodeEntrypoint(packageJson: any): string | null {
+  if (packageJson.bin) {
+    if (typeof packageJson.bin === 'string') {
+      return packageJson.bin
+    }
+    if (typeof packageJson.bin === 'object') {
+      const bins = Object.values(packageJson.bin)
       if (bins.length > 0) {
         return bins[0] as string
       }
     }
   }
 
-  // Node.js: check main field
-  if (meta.packageJson?.main) {
-    return meta.packageJson.main
+  if (packageJson.main) {
+    return packageJson.main
   }
 
-  // Python: common entry files
-  for (const name of ['main.py', 'app.py', 'cli.py', '__main__.py']) {
+  return null
+}
+
+async function resolveCommonEntrypoint(projectDir: string): Promise<string | null> {
+  const candidates = [
+    'main.py', 'app.py', 'cli.py', '__main__.py',
+    'main.ts', 'main.js', 'index.ts', 'index.js', 'cli.ts', 'cli.js',
+    'main.rb'
+  ]
+
+  for (const name of candidates) {
     if (await fileExists(join(projectDir, name))) {
       return name
     }
   }
 
-  // TypeScript/JavaScript: common entry files
-  for (const name of ['main.ts', 'main.js', 'index.ts', 'index.js', 'cli.ts', 'cli.js']) {
-    if (await fileExists(join(projectDir, name))) {
-      return name
-    }
+  return null
+}
+
+function resolveExecutableScript(executableScripts: string[]): string | null {
+  if (executableScripts.length === 0) {
+    return null
   }
 
-  // Ruby
-  if (await fileExists(join(projectDir, 'main.rb'))) {
-    return 'main.rb'
+  const rootScripts = executableScripts.filter(f => !f.includes('/'))
+  if (rootScripts.length > 0) {
+    return rootScripts[0]
   }
 
-  // Shell: look for executable scripts
-  if (meta.executableScripts.length > 0) {
-    // Prefer files in root or bin/
-    const rootScripts = meta.executableScripts.filter(f => !f.includes('/'))
-    if (rootScripts.length > 0) {
-      return rootScripts[0]
-    }
-
-    const binScripts = meta.executableScripts.filter(f => f.startsWith('bin/'))
-    if (binScripts.length > 0) {
-      return binScripts[0]
-    }
-
-    return meta.executableScripts[0]
+  const binScripts = executableScripts.filter(f => f.startsWith('bin/'))
+  if (binScripts.length > 0) {
+    return binScripts[0]
   }
+
+  return executableScripts[0]
+}
+
+export async function resolveEntrypoint(
+  spec: SecundoSpec | null,
+  meta: ProjectMeta,
+  projectDir: string
+): Promise<string> {
+  if (spec?.entry) {
+    return spec.entry
+  }
+
+  if (meta.packageJson) {
+    const nodeEntry = resolveNodeEntrypoint(meta.packageJson)
+    if (nodeEntry) return nodeEntry
+  }
+
+  const commonEntry = await resolveCommonEntrypoint(projectDir)
+  if (commonEntry) return commonEntry
+
+  const scriptEntry = resolveExecutableScript(meta.executableScripts)
+  if (scriptEntry) return scriptEntry
 
   throw new Error('No entrypoint detected. Add entry: to secundo.spec')
+}
+
+function parseGitHubRemote(gitRemote: string): string | null {
+  const match = gitRemote.match(/github\.com[:/]([^/]+)\/([^/.]+)/i)
+  if (!match) return null
+
+  const [, user, repo] = match
+  return `com.github.${sanitizeToAppId(user)}.${sanitizeToAppId(repo)}`
+}
+
+function getAppIdFromProject(meta: ProjectMeta): string | null {
+  if (meta.packageJson?.name) {
+    return sanitizeToAppId(meta.packageJson.name)
+  }
+
+  if (meta.pyproject?.name || meta.pyproject?.['project.name']) {
+    const name = meta.pyproject.name || meta.pyproject['project.name']
+    return sanitizeToAppId(name)
+  }
+
+  return null
 }
 
 export function resolveAppId(
@@ -107,32 +139,18 @@ export function resolveAppId(
   meta: ProjectMeta,
   projectDir: string
 ): string {
-  // Spec override
   if (spec?.appId) {
     return spec.appId
   }
 
-  // From package.json
-  if (meta.packageJson?.name) {
-    return sanitizeToAppId(meta.packageJson.name)
-  }
+  const projectAppId = getAppIdFromProject(meta)
+  if (projectAppId) return projectAppId
 
-  // From pyproject.toml
-  if (meta.pyproject?.name || meta.pyproject?.['project.name']) {
-    const name = meta.pyproject.name || meta.pyproject['project.name']
-    return sanitizeToAppId(name)
-  }
-
-  // From git remote
   if (meta.gitRemote) {
-    const githubMatch = meta.gitRemote.match(/github\.com[:/]([^/]+)\/([^/.]+)/i)
-    if (githubMatch) {
-      const [, user, repo] = githubMatch
-      return `com.github.${sanitizeToAppId(user)}.${sanitizeToAppId(repo)}`
-    }
+    const githubAppId = parseGitHubRemote(meta.gitRemote)
+    if (githubAppId) return githubAppId
   }
 
-  // Fallback: directory name
   const dirName = basename(projectDir)
   return `local.${sanitizeToAppId(dirName)}`
 }

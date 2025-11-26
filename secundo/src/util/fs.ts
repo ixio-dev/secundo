@@ -1,6 +1,6 @@
 import { readFile, access, readdir, stat } from 'node:fs/promises'
 import { join, relative } from 'node:path'
-import { constants } from 'node:fs'
+import { constants, type Dirent } from 'node:fs'
 
 export async function fileExists(path: string): Promise<boolean> {
   try {
@@ -61,36 +61,46 @@ export async function isExecutable(path: string): Promise<boolean> {
   }
 }
 
-export async function listFilesRecursive(dir: string, baseDir?: string): Promise<string[]> {
-  const base = baseDir || dir
+const IGNORED_DIRS = new Set(['node_modules', '.git', 'dist', '.secundo'])
+
+function shouldIgnoreEntry(entryName: string): boolean {
+  return IGNORED_DIRS.has(entryName)
+}
+
+async function processDirectoryEntries(
+  dir: string,
+  base: string,
+  entries: Dirent[]
+): Promise<string[]> {
   const files: string[] = []
 
-  try {
-    const entries = await readdir(dir, { withFileTypes: true })
-
-    for (const entry of entries) {
-      const fullPath = join(dir, entry.name)
-
-      // Skip common ignore patterns
-      if (entry.name === 'node_modules' ||
-          entry.name === '.git' ||
-          entry.name === 'dist' ||
-          entry.name === '.secundo') {
-        continue
-      }
-
-      if (entry.isDirectory()) {
-        const subFiles = await listFilesRecursive(fullPath, base)
-        files.push(...subFiles)
-      } else {
-        files.push(relative(base, fullPath))
-      }
+  for (const entry of entries) {
+    if (shouldIgnoreEntry(entry.name)) {
+      continue
     }
-  } catch {
-    // Ignore errors
+
+    const fullPath = join(dir, entry.name)
+
+    if (entry.isDirectory()) {
+      const subFiles = await listFilesRecursive(fullPath, base)
+      files.push(...subFiles)
+    } else {
+      files.push(relative(base, fullPath))
+    }
   }
 
   return files
+}
+
+export async function listFilesRecursive(dir: string, baseDir?: string): Promise<string[]> {
+  const base = baseDir || dir
+
+  try {
+    const entries = await readdir(dir, { withFileTypes: true })
+    return await processDirectoryEntries(dir, base, entries)
+  } catch {
+    return []
+  }
 }
 
 export async function findExecutableScripts(files: string[], projectDir: string): Promise<string[]> {

@@ -5,6 +5,7 @@ import { verify } from './cli/verify.js'
 import { run } from './cli/run.js'
 import { ls } from './cli/ls.js'
 import { uninstall } from './cli/uninstall.js'
+import { completion } from './cli/completion.js'
 
 const USAGE = `
 secundo v0.1.0 - Single-file executable packer
@@ -16,6 +17,7 @@ USAGE:
   secundo run <file.sec> [args]           Run without installing
   secundo ls                              List installed apps
   secundo uninstall <appId>               Remove installed app
+  secundo completion <shell>              Generate shell completion script
 
 PACK OPTIONS:
   --id <appId>            Override autodetected appId
@@ -28,6 +30,13 @@ PACK OPTIONS:
   --dry-run               Show detected config but don't pack
   --json                  Output detection result as JSON
   -h, --help              Show this help
+
+COMPLETION:
+  # Zsh (add to ~/.zshrc):
+  secundo completion zsh > /usr/local/share/zsh/site-functions/_secundo
+
+  # Bash (add to ~/.bashrc or ~/.bash_profile):
+  source <(secundo completion bash)
 
 EXAMPLES:
   secundo pack .
@@ -67,6 +76,9 @@ async function main() {
         break
       case 'uninstall':
         await uninstall(commandArgs)
+        break
+      case 'completion':
+        await completion(commandArgs)
         break
       default:
         console.error(`Unknown command: ${command}`)
