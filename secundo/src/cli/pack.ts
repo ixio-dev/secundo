@@ -10,7 +10,7 @@ import {
   addManifestToTarball,
   gzipAndEncode
 } from '../core/payload-helper.js'
-import { isVerbose } from '../util/config.js'
+import { isVerbose, getCwd } from '../util/config.js'
 import { progress, verbose, success, info, dim, bold } from '../util/output.js'
 
 interface PackArgs {
@@ -83,7 +83,7 @@ function printPackConfig(config: PackConfig, detected: DetectionResult, outputFi
 }
 
 function determineOutputFile(projectDir: string, outputArg?: string): string {
-  return outputArg || join(process.cwd(), `${basename(projectDir)}.sec`)
+  return outputArg || join(getCwd(), `${basename(projectDir)}.sec`)
 }
 
 async function packProject(
@@ -149,7 +149,9 @@ export async function pack(args: string[]): Promise<void> {
     process.exit(0)
   }
 
-  const projectDir = resolve(positionals[0])
+  // Resolve relative to the original working directory, not the extracted install dir
+  const cwd = getCwd()
+  const projectDir = resolve(cwd, positionals[0])
 
   try {
     const detected = await detect(projectDir)

@@ -20,6 +20,7 @@ INSTALL_DIR="${SECUNDO_HOME}/${APP_ID}/${APP_PAYLOAD_HASH}"
 TMPDIR="${TMPDIR:-/tmp}"
 SELF="$0"
 MARKER="__SECUNDO_PAYLOAD__"
+ORIGINAL_PWD="$(pwd)"
 
 err() {
     printf '%s\n' "secundo: $*" 1>&2
@@ -152,13 +153,13 @@ if [ -d "$INSTALL_DIR" ]; then
     # run the entrypoint with interpreter
     # interpreter args is a JSON array; try to eval it safely
     case "$INTERPRETER_ARGS_JSON" in
-        'null'|'') INTERPRETER_ARGS_LIST=;; 
+        'null'|'') INTERPRETER_ARGS_LIST=;;
         *) INTERPRETER_ARGS_LIST=$(printf '%s' "$INTERPRETER_ARGS_JSON" | sed -e 's/^\[//' -e 's/\]$//' -e 's/","/","/g' -e 's/^"//' -e 's/"$//' -e 's/","/" "/g');;
     esac
 
-    # exec interpreter with args
+    # exec interpreter with args, passing original PWD via environment
     # shellcheck disable=SC2086
-    exec $INTERPRETER $INTERPRETER_ARGS_LIST "$ENTRY" "$@"
+    SECUNDO_ORIGINAL_PWD="$ORIGINAL_PWD" exec $INTERPRETER $INTERPRETER_ARGS_LIST "$ENTRY" "$@"
 fi
 
 # Installation path does not exist: verify payload hash before extraction
@@ -238,13 +239,13 @@ ln -sfn "${APP_PAYLOAD_HASH}" "${SECUNDO_HOME}/${APP_ID}/current" 2>/dev/null ||
 cd "$INSTALL_DIR" || { err "cannot cd to $INSTALL_DIR"; exit 1; }
 
 case "$INTERPRETER_ARGS_JSON" in
-    'null'|'') INTERPRETER_ARGS_LIST=;; 
+    'null'|'') INTERPRETER_ARGS_LIST=;;
     *) INTERPRETER_ARGS_LIST=$(printf '%s' "$INTERPRETER_ARGS_JSON" | sed -e 's/^\[//' -e 's/\]$//' -e 's/^"//' -e 's/"$//' -e 's/","/" "/g');;
 esac
 
-# exec interpreter with args
+# exec interpreter with args, passing original PWD via environment
 # shellcheck disable=SC2086
-exec $INTERPRETER $INTERPRETER_ARGS_LIST "$ENTRY" "$@"
+SECUNDO_ORIGINAL_PWD="$ORIGINAL_PWD" exec $INTERPRETER $INTERPRETER_ARGS_LIST "$ENTRY" "$@"
 
 exit 0
 

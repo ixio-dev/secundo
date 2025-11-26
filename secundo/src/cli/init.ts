@@ -2,6 +2,7 @@ import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileExists } from '../util/fs.js'
 import { success, error, warning, info } from '../util/output.js'
+import { getCwd } from '../util/config.js'
 
 const SPEC_TEMPLATE = `# Secundo Specification File
 # Override autodetection with custom configuration
@@ -29,7 +30,7 @@ const SPEC_TEMPLATE = `# Secundo Specification File
 `
 
 export async function init(args: string[]): Promise<void> {
-  const cwd = process.cwd()
+  const cwd = getCwd()
   const specPath = join(cwd, 'secundo.spec')
 
   // Check if spec already exists

@@ -29,3 +29,11 @@ export function isNoColor(): boolean {
 export function getConfig(): Readonly<Config> {
   return config
 }
+
+/**
+ * Get the actual current working directory, accounting for when running
+ * from a .sec executable that has changed directory.
+ */
+export function getCwd(): string {
+  return process.env.SECUNDO_ORIGINAL_PWD || process.cwd()
+}
