@@ -7,6 +7,9 @@ import { ls } from './cli/ls.js'
 import { uninstall } from './cli/uninstall.js'
 import { completion } from './cli/completion.js'
 import { schema } from './cli/schema.js'
+import { init } from './cli/init.js'
+import { setVerbose, setNoColor } from './util/config.js'
+import { enableColor } from './util/output.js'
 
 const USAGE = `
 secundo v0.1.0 - Single-file executable packer
@@ -18,8 +21,14 @@ USAGE:
   secundo run <file.sec> [args]           Run without installing
   secundo ls                              List installed apps
   secundo uninstall <appId>               Remove installed app
+  secundo init [--force]                  Create secundo.spec template
   secundo completion <shell>              Generate shell completion script
   secundo schema                          Output JSON schema for secundo.spec
+
+GLOBAL OPTIONS:
+  --verbose                               Enable verbose output
+  --no-color                              Disable colored output
+  -h, --help                              Show this help
 
 PACK OPTIONS:
   --id <appId>            Override autodetected appId
@@ -31,7 +40,6 @@ PACK OPTIONS:
   --spec <path>           Use custom spec file
   --dry-run               Show detected config but don't pack
   --json                  Output detection result as JSON
-  -h, --help              Show this help
 
 COMPLETION:
   # Zsh (add to ~/.zshrc):
@@ -42,8 +50,9 @@ COMPLETION:
 
 EXAMPLES:
   secundo pack .
-  secundo pack ./myapp -o myapp.sec
+  secundo pack ./myapp -o myapp.sec --verbose
   secundo pack . --id com.example.app --entry src/main.ts
+  secundo init
   secundo inspect myapp.sec
   secundo run myapp.sec --help
 `
@@ -54,6 +63,21 @@ async function main() {
   if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
     console.log(USAGE)
     process.exit(0)
+  }
+
+  // Parse global flags
+  const verboseIndex = args.indexOf('--verbose')
+  const noColorIndex = args.indexOf('--no-color')
+
+  if (verboseIndex !== -1) {
+    setVerbose(true)
+    args.splice(verboseIndex, 1)
+  }
+
+  if (noColorIndex !== -1) {
+    setNoColor(true)
+    enableColor(false)
+    args.splice(noColorIndex, 1)
   }
 
   const command = args[0]
@@ -78,6 +102,9 @@ async function main() {
         break
       case 'uninstall':
         await uninstall(commandArgs)
+        break
+      case 'init':
+        await init(commandArgs)
         break
       case 'completion':
         await completion(commandArgs)

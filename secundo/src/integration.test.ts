@@ -52,7 +52,7 @@ describe('Self-hosting Integration Tests', () => {
     ])
 
     expect(result.exitCode).toBe(0)
-    expect(result.stdout).toContain('Created:')
+    expect(result.stdout).toContain('Created')
 
     // Verify the .sec file was created
     await expect(access(TEST_OUTPUT)).resolves.toBeUndefined()

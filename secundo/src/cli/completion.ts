@@ -26,6 +26,7 @@ _secundo() {
     'run:Run a .sec file without installing'
     'ls:List installed applications'
     'uninstall:Remove an installed application'
+    'init:Create secundo.spec template'
     'completion:Generate shell completion script'
     'schema:Output JSON schema for secundo.spec'
   )
@@ -85,7 +86,7 @@ function generateBashCompletion(): void {
   COMPREPLY=()
   cur="\${COMP_WORDS[COMP_CWORD]}"
   prev="\${COMP_WORDS[COMP_CWORD-1]}"
-  commands="pack inspect verify run ls uninstall completion schema"
+  commands="pack inspect verify run ls uninstall init completion schema"
 
   case "\${COMP_CWORD}" in
     1)
