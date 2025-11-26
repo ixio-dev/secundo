@@ -1,0 +1,32 @@
+{
+  "name": "secundo",
+  "version": "0.1.0",
+  "description": "Single-file executable packer for script-based applications",
+  "type": "module",
+  "main": "dist/secundo.js",
+  "bin": {
+    "secundo": "dist/secundo.js"
+  },
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "packer",
+    "bundler",
+    "cli",
+    "portable",
+    "self-extracting"
+  ],
+  "author": "Stefan",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "esbuild": "^0.19.8",
+    "typescript": "^5.3.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
