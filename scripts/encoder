@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+
+CODEC_DIR="$HOME/secundo/dev/codec"
+PRIVATE_KEY="$CODEC_DIR/private.pem"
+PUBLIC_KEY="$CODEC_DIR/public.pem"
+MESSAGE="$1"
+SIG_FILE="message.sig"
+
+# Ensure codec directory exists
+mkdir -p "$CODEC_DIR"
+
+# Generate key pair if missing
+if [ ! -f "$PRIVATE_KEY" ] || [ ! -f "$PUBLIC_KEY" ]; then
+  openssl genrsa -out "$PRIVATE_KEY" 2048
+  openssl rsa -in "$PRIVATE_KEY" -pubout -out "$PUBLIC_KEY"
+fi
+
+# Save message to temp file
+echo "$MESSAGE" > message.txt
+
+# Sign message with private key
+openssl dgst -sha256 -sign "$PRIVATE_KEY" -out "$SIG_FILE" message.txt
+
+echo "Signature output written to: $SIG_FILE"
