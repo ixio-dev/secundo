@@ -111,14 +111,14 @@ export class ProgressIndicator {
 
     this.interval = setInterval(() => {
       this.index = (this.index + 1) % this.spinner.length
-      process.stdout.write('\r' + cyan(this.spinner[this.index]) + ' ' + this.message)
+      process.stdout.write('\r\x1b[2K' + cyan(this.spinner[this.index]) + ' ' + this.message)
     }, 80)
   }
 
   succeed(message?: string): void {
     this.stop()
     if (colorEnabled) {
-      process.stdout.write('\r' + green('✓') + ' ' + (message || this.message) + '\n')
+      process.stdout.write('\r\x1b[2K' + green('✓') + ' ' + (message || this.message) + '\n')
     } else {
       console.log((message || this.message) + ' - done')
     }
@@ -127,7 +127,7 @@ export class ProgressIndicator {
   fail(message?: string): void {
     this.stop()
     if (colorEnabled) {
-      process.stdout.write('\r' + red('✗') + ' ' + (message || this.message) + '\n')
+      process.stdout.write('\r\x1b[2K' + red('✗') + ' ' + (message || this.message) + '\n')
     } else {
       console.error((message || this.message) + ' - failed')
     }
@@ -136,7 +136,7 @@ export class ProgressIndicator {
   update(message: string): void {
     this.message = message
     if (colorEnabled && this.interval) {
-      process.stdout.write('\r' + cyan(this.spinner[this.index]) + ' ' + this.message)
+      process.stdout.write('\r\x1b[2K' + cyan(this.spinner[this.index]) + ' ' + this.message)
     }
   }
 
