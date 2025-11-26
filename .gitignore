@@ -1,4 +1,8 @@
+# Dev tools
 .claude/
+.idea/
+
+# Test executable
 secundo.sec
 
 # Logs

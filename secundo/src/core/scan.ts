@@ -39,7 +39,8 @@ export async function scanProject(projectDir: string): Promise<ProjectMeta> {
   meta.tsconfig = await fileExists(join(projectDir, 'tsconfig.json'))
 
   // Get git remote
-  meta.gitRemote = await readGitRemote(projectDir)
+  const gitRemote = await readGitRemote(projectDir)
+  meta.gitRemote = gitRemote ?? undefined
 
   // List all files
   meta.files = await listFilesRecursive(projectDir)
