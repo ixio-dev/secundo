@@ -11,7 +11,8 @@ import {
   gzipAndEncode
 } from '../core/payload-helper.js'
 import { isVerbose, getCwd } from '../util/config.js'
-import { progress, verbose, success, info, dim, bold } from '../util/output.js'
+import { progress, verbose, success, info, dim, bold, error } from '../util/output.js'
+import { testPackedApp } from '../core/test-runner.js'
 
 interface PackArgs {
   id?: string
@@ -24,6 +25,7 @@ interface PackArgs {
   'dry-run'?: boolean
   json?: boolean
   help?: boolean
+  'pack-folder'?: string
 }
 
 interface PackConfig {
@@ -34,6 +36,7 @@ interface PackConfig {
   version: string
   name?: string
   metadata: Record<string, any>
+  packFolder?: string
 }
 
 function parsePackArgs(args: string[]) {
@@ -49,7 +52,8 @@ function parsePackArgs(args: string[]) {
       spec: { type: 'string' },
       'dry-run': { type: 'boolean' },
       json: { type: 'boolean' },
-      help: { type: 'boolean', short: 'h' }
+      help: { type: 'boolean', short: 'h' },
+      'pack-folder': { type: 'string' }
     },
     allowPositionals: true
   })
@@ -65,7 +69,8 @@ function buildPackConfig(detected: DetectionResult, values: PackArgs): PackConfi
     interpreterArgs: values.args || detected.interpreterArgs,
     version: detected.version,
     name: detected.name,
-    metadata: detected.metadata
+    metadata: detected.metadata,
+    packFolder: values['pack-folder'] || detected.packFolder
   }
 }
 
@@ -76,6 +81,9 @@ function printPackConfig(config: PackConfig, detected: DetectionResult, outputFi
   console.log(`Entry:       ${config.entry}`)
   if (config.interpreterArgs.length > 0) {
     console.log(`Args:        ${config.interpreterArgs.join(' ')}`)
+  }
+  if (config.packFolder) {
+    console.log(`Pack folder: ${config.packFolder}`)
   }
   if (outputFile) {
     console.log(`Output:      ${dim(outputFile)}`)
@@ -96,8 +104,9 @@ async function packProject(
 
   const scanProgress = progress('Scanning project files')
   scanProgress.start()
-  verbose(`Scanning directory: ${projectDir}`, verboseEnabled)
-  const { tarPath, hash, tempDir } = await createProjectTarball(projectDir)
+  const scanDir = config.packFolder ? join(projectDir, config.packFolder) : projectDir
+  verbose(`Scanning directory: ${scanDir}`, verboseEnabled)
+  const { tarPath, hash, tempDir } = await createProjectTarball(projectDir, config.packFolder)
   scanProgress.succeed('Project scanned')
   verbose(`Tarball created: ${tarPath}`, verboseEnabled)
   info(`Project hash: ${dim(hash.substring(0, 12) + '...')}`)
@@ -107,7 +116,7 @@ async function packProject(
     const signProgress = progress('Signing manifest')
     signProgress.start()
     verbose('Generating Ed25519 signature', verboseEnabled)
-    const manifest = await createSignedManifest(
+    const signingResult = await createSignedManifest(
       {
         ...config,
         name: config.name,
@@ -117,12 +126,13 @@ async function packProject(
       hash
     )
     signProgress.succeed('Manifest signed')
-    verbose(`Signature: ${manifest.signature.substring(0, 16)}...`, verboseEnabled)
+    verbose(`Signature: ${signingResult.signature.substring(0, 16)}...`, verboseEnabled)
 
     const buildProgress = progress('Building payload')
     buildProgress.start()
-    verbose('Adding manifest to tarball', verboseEnabled)
-    await addManifestToTarball(tarPath, JSON.stringify(manifest, null, 2))
+    verbose('Adding unsigned manifest to tarball', verboseEnabled)
+    // Embed UNSIGNED manifest in payload (no signature/publicKey)
+    await addManifestToTarball(tarPath, JSON.stringify(signingResult.unsignedManifest, null, 2))
 
     buildProgress.update('Compressing payload')
     verbose('Compressing with gzip level 9', verboseEnabled)
@@ -130,8 +140,9 @@ async function packProject(
     verbose(`Compressed size: ${Math.round(finalPayload.length / 1024)} KB`, verboseEnabled)
 
     buildProgress.update('Embedding payload')
-    verbose('Embedding in POSIX shell stub', verboseEnabled)
-    await embedPayload(manifest, finalPayload, outputFile)
+    verbose('Embedding in POSIX shell stub with signature', verboseEnabled)
+    // Embed SIGNED manifest in shell stub (includes signature/publicKey)
+    await embedPayload(signingResult.signedManifest, finalPayload, outputFile)
     buildProgress.succeed('Payload embedded')
   } finally {
     verbose('Cleaning up temporary files', verboseEnabled)
@@ -173,6 +184,42 @@ export async function pack(args: string[]): Promise<void> {
     console.log()
     success(`Created ${bold(outputFile)}`)
     info(`Size: ${dim((finalPayload.length / 1024).toFixed(1) + ' KB (base64)')}`)
+
+    // Run tests if testArgs are provided
+    if (detected.testArgs && detected.testArgs.length > 0) {
+      console.log()
+      const testProgress = progress('Running validation tests')
+      testProgress.start()
+
+      const testResult = await testPackedApp(
+        projectDir,
+        config.interpreter,
+        config.interpreterArgs,
+        config.entry,
+        resolve(outputFile),
+        detected.testArgs,
+        config.packFolder
+      )
+
+      if (testResult.success) {
+        testProgress.succeed('Validation tests passed')
+      } else {
+        testProgress.fail('Validation tests failed')
+        console.log()
+        error(`Test failure: ${testResult.message}`)
+        console.log()
+        console.log('Original output:')
+        console.log(`  stdout: ${dim(JSON.stringify(testResult.originalOutput.stdout))}`)
+        console.log(`  stderr: ${dim(JSON.stringify(testResult.originalOutput.stderr))}`)
+        console.log(`  exit code: ${testResult.originalOutput.exitCode}`)
+        console.log()
+        console.log('Packed output:')
+        console.log(`  stdout: ${dim(JSON.stringify(testResult.packedOutput.stdout))}`)
+        console.log(`  stderr: ${dim(JSON.stringify(testResult.packedOutput.stderr))}`)
+        console.log(`  exit code: ${testResult.packedOutput.exitCode}`)
+        process.exit(1)
+      }
+    }
   } catch (error) {
     console.error('Error:', error instanceof Error ? error.message : error)
     process.exit(1)

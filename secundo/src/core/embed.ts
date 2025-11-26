@@ -1,9 +1,9 @@
 import { writeFile, chmod } from 'node:fs/promises'
-import type { SecundoManifest } from '../util/types.js'
+import type { SignedSecundoManifest } from '../util/types.js'
 import stubTemplate from '../stub/posix-extractor.sh'
 
 export async function embedPayload(
-  manifest: SecundoManifest,
+  manifest: SignedSecundoManifest,
   payload: string,
   outputPath: string
 ): Promise<void> {

@@ -8,11 +8,14 @@ import { tmpdir } from 'node:os'
 import { sha256Hex } from '../util/hash.js'
 
 // Create tarball of project files WITHOUT manifest
-export async function createProjectTarball(projectDir: string): Promise<{ tarPath: string; hash: string; tempDir: string }> {
+export async function createProjectTarball(projectDir: string, packFolder?: string): Promise<{ tarPath: string; hash: string; tempDir: string }> {
   const tempDir = join(tmpdir(), `secundo-pack-${Date.now()}`)
   await mkdir(tempDir, { recursive: true })
 
   const tarPath = join(tempDir, 'project.tar')
+
+  // Determine the directory to tar from
+  const sourceDir = packFolder ? join(projectDir, packFolder) : projectDir
 
   await new Promise<void>((resolve, reject) => {
     const tar = spawn('tar', [
@@ -24,7 +27,7 @@ export async function createProjectTarball(projectDir: string): Promise<{ tarPat
       '--exclude', '*.sec',
       '.'
     ], {
-      cwd: projectDir,
+      cwd: sourceDir,
       stdio: ['ignore', 'pipe', 'pipe']
     })
 

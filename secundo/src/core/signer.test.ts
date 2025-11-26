@@ -65,7 +65,7 @@ describe('signer', () => {
 
   describe('createSignedManifest', () => {
     it('should create complete signed manifest', async () => {
-      const manifest: Omit<SecundoManifest, 'signature' | 'publicKey' | 'hash'> = {
+      const manifest: Omit<SecundoManifest, 'hash'> = {
         appId: 'com.example.app',
         version: '1.0.0',
         entry: 'index.js',
@@ -75,17 +75,29 @@ describe('signer', () => {
 
       const payloadHash = 'abc123def456'
 
-      const signedManifest = await createSignedManifest(manifest, payloadHash)
+      const result = await createSignedManifest(manifest, payloadHash)
 
-      expect(signedManifest.appId).toBe('com.example.app')
-      expect(signedManifest.version).toBe('1.0.0')
-      expect(signedManifest.hash).toBe(payloadHash)
-      expect(signedManifest.signature).toBeTruthy()
-      expect(signedManifest.publicKey).toBeTruthy()
+      // Check unsigned manifest (embedded in payload)
+      expect(result.unsignedManifest.appId).toBe('com.example.app')
+      expect(result.unsignedManifest.version).toBe('1.0.0')
+      expect(result.unsignedManifest.hash).toBe(payloadHash)
+      expect(result.unsignedManifest).not.toHaveProperty('signature')
+      expect(result.unsignedManifest).not.toHaveProperty('publicKey')
+
+      // Check signed manifest (embedded in shell stub)
+      expect(result.signedManifest.appId).toBe('com.example.app')
+      expect(result.signedManifest.version).toBe('1.0.0')
+      expect(result.signedManifest.hash).toBe(payloadHash)
+      expect(result.signedManifest.signature).toBeTruthy()
+      expect(result.signedManifest.publicKey).toBeTruthy()
+
+      // Check signature components
+      expect(result.signature).toBeTruthy()
+      expect(result.publicKey).toBeTruthy()
     })
 
     it('should preserve all manifest fields', async () => {
-      const manifest: Omit<SecundoManifest, 'signature' | 'publicKey' | 'hash'> = {
+      const manifest: Omit<SecundoManifest, 'hash'> = {
         appId: 'com.example.app',
         version: '2.0.0',
         entry: 'src/main.ts',
@@ -96,20 +108,30 @@ describe('signer', () => {
         metadata: { custom: 'value' }
       }
 
-      const signedManifest = await createSignedManifest(manifest, 'hash123')
+      const result = await createSignedManifest(manifest, 'hash123')
 
-      expect(signedManifest.appId).toBe('com.example.app')
-      expect(signedManifest.version).toBe('2.0.0')
-      expect(signedManifest.entry).toBe('src/main.ts')
-      expect(signedManifest.interpreter).toBe('ts-node')
-      expect(signedManifest.interpreterArgs).toEqual(['--transpile-only'])
-      expect(signedManifest.name).toBe('My App')
-      expect(signedManifest.description).toBe('A test app')
-      expect(signedManifest.metadata).toEqual({ custom: 'value' })
+      // Check all fields are preserved in both manifests
+      expect(result.unsignedManifest.appId).toBe('com.example.app')
+      expect(result.unsignedManifest.version).toBe('2.0.0')
+      expect(result.unsignedManifest.entry).toBe('src/main.ts')
+      expect(result.unsignedManifest.interpreter).toBe('ts-node')
+      expect(result.unsignedManifest.interpreterArgs).toEqual(['--transpile-only'])
+      expect(result.unsignedManifest.name).toBe('My App')
+      expect(result.unsignedManifest.description).toBe('A test app')
+      expect(result.unsignedManifest.metadata).toEqual({ custom: 'value' })
+
+      expect(result.signedManifest.appId).toBe('com.example.app')
+      expect(result.signedManifest.version).toBe('2.0.0')
+      expect(result.signedManifest.entry).toBe('src/main.ts')
+      expect(result.signedManifest.interpreter).toBe('ts-node')
+      expect(result.signedManifest.interpreterArgs).toEqual(['--transpile-only'])
+      expect(result.signedManifest.name).toBe('My App')
+      expect(result.signedManifest.description).toBe('A test app')
+      expect(result.signedManifest.metadata).toEqual({ custom: 'value' })
     })
 
     it('should create verifiable signature', async () => {
-      const manifest: Omit<SecundoManifest, 'signature' | 'publicKey' | 'hash'> = {
+      const manifest: Omit<SecundoManifest, 'hash'> = {
         appId: 'com.example.app',
         version: '1.0.0',
         entry: 'index.js',
@@ -119,18 +141,17 @@ describe('signer', () => {
 
       const payloadHash = 'abc123'
 
-      const signedManifest = await createSignedManifest(manifest, payloadHash)
+      const result = await createSignedManifest(manifest, payloadHash)
 
-      // Recreate the signing input
-      const unsignedManifest = { ...manifest, hash: payloadHash }
-      const manifestJson = JSON.stringify(unsignedManifest, null, 2)
+      // Recreate the signing input from unsigned manifest
+      const manifestJson = JSON.stringify(result.unsignedManifest, null, 2)
       const manifestHash = sha256(manifestJson)
       const payloadHashBuffer = Buffer.from(payloadHash, 'hex')
       const combined = Buffer.concat([manifestHash, payloadHashBuffer])
 
-      // Verify signature
-      const signatureBytes = base64ToBytes(signedManifest.signature)
-      const publicKeyBytes = base64ToBytes(signedManifest.publicKey)
+      // Verify signature using signature from result
+      const signatureBytes = base64ToBytes(result.signature)
+      const publicKeyBytes = base64ToBytes(result.publicKey)
 
       const isValid = await verify(signatureBytes, combined, publicKeyBytes)
       expect(isValid).toBe(true)

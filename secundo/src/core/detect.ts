@@ -1,11 +1,11 @@
-import { join } from 'node:path'
-import type { DetectionResult, SecundoSpec } from '../util/types.js'
-import { fileExists, readYAML } from '../util/fs.js'
-import { scanProject } from './scan.js'
+import {join} from 'node:path'
+import type {DetectionResult, SecundoSpec} from '../util/types.js'
+import {fileExists, readYAML} from '../util/fs.js'
+import {scanProject} from './scan.js'
 import {
   resolveAppId,
-  resolveInterpreter,
   resolveEntrypoint,
+  resolveInterpreter,
   resolveInterpreterArgs,
   resolveName,
   resolveVersion
@@ -15,7 +15,7 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
   const spec = await loadSpec(projectDir)
   const meta = await scanProject(projectDir)
 
-  const result: DetectionResult = {
+  return {
     appId: resolveAppId(spec, meta, projectDir),
     interpreter: resolveInterpreter(spec, meta),
     entry: await resolveEntrypoint(spec, meta, projectDir),
@@ -25,10 +25,10 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
     metadata: {
       description: spec?.description || meta.packageJson?.description || '',
       ...(spec?.metadata || {})
-    }
+    },
+    packFolder: spec?.packFolder,
+    testArgs: spec?.testArgs
   }
-
-  return result
 }
 
 async function loadSpec(projectDir: string): Promise<SecundoSpec | null> {
@@ -45,7 +45,7 @@ async function loadSpec(projectDir: string): Promise<SecundoSpec | null> {
     try {
       // Handle YAML array format like "[arg1, arg2]"
       spec.interpreterArgs = spec.interpreterArgs
-        .replace(/^\[|\]$/g, '')
+        .replace(/^\[|]$/g, '')
         .split(',')
         .map((s: string) => s.trim())
         .filter((s: string) => s.length > 0)

@@ -120,7 +120,7 @@ Priority: HIGH - User emphasized this is IMPORTANT
   - ✅ Base64 decode
   - ✅ Gzip decompress
   - ✅ Tar extraction to ~/.secundo/lib/<appId>/<hash>
-  - ✅ Signature verification (currently disabled, needs fix)
+  - ✅ Signature verification (FIXED - hex-to-binary + OpenSSL -rawin flag)
   - ✅ Execute interpreter with entry point
   - ✅ Error handling and cleanup
   - ✅ Exit code propagation
@@ -141,10 +141,10 @@ Priority: HIGH - User emphasized this is IMPORTANT
 **User Preference: ALWAYS add help functionality to CLI tools**
 
 - [x] ~~Add `--help` flag to main CLI~~ **DONE**
-- [ ] Add `--help` to each subcommand
-- [ ] Add `--version` flag (currently shown in help text)
+- [x] ~~Add `--help` to each subcommand~~ **DONE** - All 9 subcommands have help
+- [x] ~~Add `--version` flag~~ **DONE** - `secundo --version` or `secundo -v`
 - [x] ~~Create comprehensive help text for pack command~~ **DONE**
-- [ ] Document remaining CLI options for other commands
+- [x] ~~Document remaining CLI options for other commands~~ **DONE** - via --help flags
 
 ### Shell Completion
 **User Preference: ALWAYS add zsh completion support**
@@ -270,12 +270,14 @@ These are explicitly out of scope per PRD, but tracked for future consideration:
 - ✅ Build size: 43.3 KB (fully self-contained)
 
 **Latest Update (2025-11-26):**
-- ✅ Fixed integration test failure after output format changes
-  - Updated integration.test.ts to match new colored output format
-  - Changed assertion from 'Created:' to 'Created' to match new output
-  - All 126 tests passing (122 unit + 4 integration)
+- ✅ **CRITICAL FIX**: Fixed POSIX signature verification (two bugs)
+  - Bug 1: Hex-to-binary conversion was broken (sed/xargs/printf produced ASCII not binary)
+  - Bug 2: OpenSSL Ed25519 verification needed `-rawin` flag
+  - Signature verification now works correctly in shell stub
+- ✅ Added `--version` / `-v` flag to main CLI
+- ✅ Added `--help` / `-h` to all 9 subcommands (inspect, verify, run, ls, uninstall, init, completion, schema, pack)
+- ✅ All 122 tests passing
 
 **Next Priority:**
 - Add CLI command tests (pack, inspect, verify, run, ls, uninstall)
-- Implement checksum verification in extraction process
 - Improve error messages with helpful suggestions

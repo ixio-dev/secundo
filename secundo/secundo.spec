@@ -1,5 +1,8 @@
 appId: dev.ixio.secundo
-entry: dist/secundo.js
+packFolder: dist/
+entry: ./secundo.js
+testArgs: 
+  - help
 interpreter: node
 name: Secundo
 version: 0.1.0

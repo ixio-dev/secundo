@@ -1,4 +1,3 @@
-import { parseArgs } from 'node:util'
 import { pack } from './cli/pack.js'
 import { inspect } from './cli/inspect.js'
 import { verify } from './cli/verify.js'
@@ -29,6 +28,7 @@ GLOBAL OPTIONS:
   --verbose                               Enable verbose output
   --no-color                              Disable colored output
   -h, --help                              Show this help
+  -v, --version                           Show version number
 
 PACK OPTIONS:
   --id <appId>            Override autodetected appId
@@ -62,6 +62,11 @@ async function main() {
 
   if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
     console.log(USAGE)
+    process.exit(0)
+  }
+
+  if (args[0] === '--version' || args[0] === '-v') {
+    console.log('0.1.0')
     process.exit(0)
   }
 

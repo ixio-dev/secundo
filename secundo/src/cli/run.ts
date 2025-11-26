@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, rm } from 'node:fs/promises'
 import { createWriteStream } from 'node:fs'
 import { createGunzip } from 'node:zlib'
 import { pipeline } from 'node:stream/promises'
@@ -29,10 +29,10 @@ async function extractTarToDirectory(tarPath: string, extractDir: string): Promi
     })
 
     tar.on('close', (code) => {
-      if (code !== 0) {
-        reject(new Error(`tar extraction failed: ${stderr}`))
-      } else {
+      if (code === 0) {
         resolve()
+      } else {
+        reject(new Error(`tar extraction failed: ${stderr}`))
       }
     })
 
@@ -88,10 +88,26 @@ async function cleanupAndExit(extractDir: string | null, exitCode: number): Prom
   process.exit(exitCode)
 }
 
+const HELP = `
+secundo run - Execute .sec file without installing
+
+USAGE:
+  secundo run <file.sec> [args...]
+
+DESCRIPTION:
+  Extracts to a temporary directory, executes, then cleans up.
+  Arguments after the file are passed to the application.
+
+EXAMPLES:
+  secundo run myapp.sec
+  secundo run myapp.sec --help
+  secundo run myapp.sec input.txt -o output.txt
+`
+
 export async function run(args: string[]): Promise<void> {
-  if (args.length === 0) {
-    console.error('Usage: secundo run <file.sec> [args]')
-    process.exit(1)
+  if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
+    console.log(HELP)
+    process.exit(args.length === 0 ? 1 : 0)
   }
 
   const file = args[0]

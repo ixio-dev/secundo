@@ -98,7 +98,23 @@ function formatAsTable(apps: InstalledApp[]): void {
   }
 }
 
+const HELP = `
+secundo ls - List installed applications
+
+USAGE:
+  secundo ls
+
+DESCRIPTION:
+  Shows all applications installed in ~/.secundo/lib
+  with their app ID, version, and payload hash.
+`
+
 export async function ls(args: string[]): Promise<void> {
+  if (args[0] === '--help' || args[0] === '-h') {
+    console.log(HELP)
+    process.exit(0)
+  }
+
   try {
     const apps = await getInstalledApps()
     formatAsTable(apps)

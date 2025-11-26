@@ -29,7 +29,26 @@ const SPEC_TEMPLATE = `# Secundo Specification File
 #   homepage: https://example.com
 `
 
+const HELP = `
+secundo init - Create secundo.spec template
+
+USAGE:
+  secundo init [--force]
+
+OPTIONS:
+  --force    Overwrite existing secundo.spec
+
+DESCRIPTION:
+  Creates a secundo.spec template file in the current directory
+  with commented configuration options.
+`
+
 export async function init(args: string[]): Promise<void> {
+  if (args[0] === '--help' || args[0] === '-h') {
+    console.log(HELP)
+    process.exit(0)
+  }
+
   const cwd = getCwd()
   const specPath = join(cwd, 'secundo.spec')
 

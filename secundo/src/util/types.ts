@@ -1,3 +1,4 @@
+// Manifest stored inside the payload (unsigned)
 export interface SecundoManifest {
   appId: string
   version: string
@@ -5,11 +6,15 @@ export interface SecundoManifest {
   interpreter: string
   interpreterArgs: string[]
   hash: string
-  publicKey: string
-  signature: string
   name?: string
   description?: string
   metadata?: Record<string, any>
+}
+
+// Full manifest with signature (used for embedding in shell stub)
+export interface SignedSecundoManifest extends SecundoManifest {
+  publicKey: string
+  signature: string
 }
 
 export interface DetectionResult {
@@ -20,6 +25,8 @@ export interface DetectionResult {
   version: string
   name?: string
   metadata: Record<string, any>
+  packFolder?: string
+  testArgs?: string[]
 }
 
 export interface SecundoSpec {
@@ -31,6 +38,8 @@ export interface SecundoSpec {
   version?: string
   description?: string
   metadata?: Record<string, any>
+  packFolder?: string
+  testArgs?: string[]
 }
 
 export interface ProjectMeta {
@@ -59,4 +68,5 @@ export interface PackOptions {
   specPath?: string
   dryRun?: boolean
   json?: boolean
+  packFolder?: string
 }

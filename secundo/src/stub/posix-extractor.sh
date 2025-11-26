@@ -80,13 +80,31 @@ _extract_payload_to() {
 _write_pub_and_sig() {
     pubkey_file="$1/pubkey.pem"
     sig_file="$1/sig.bin"
+    tmp_raw="$1/pubkey.raw"
 
-    # Decode base64 into files
-    printf '%s' "$PUBKEY_B64" | base64 -d > "$pubkey_file" 2>/dev/null || {
-        # If direct decode to PEM fails, still write raw bytes (some packers may embed raw pubkey)
-        printf '%s' "$PUBKEY_B64" | base64 -d > "$pubkey_file" 2>/dev/null || true
+    # Decode raw Ed25519 public key (32 bytes)
+    printf '%s' "$PUBKEY_B64" | base64 -d > "$tmp_raw" 2>/dev/null || {
+        err "failed to decode public key"
+        return 1
     }
 
+    # Create PEM file: ASN.1 prefix + raw key, then base64 encode the whole thing
+    # ASN.1 prefix for Ed25519 public key: 302a300506032b6570032100 (12 bytes)
+    {
+        echo "-----BEGIN PUBLIC KEY-----"
+        {
+            printf '\x30\x2a\x30\x05\x06\x03\x2b\x65\x70\x03\x21\x00'
+            cat "$tmp_raw"
+        } | base64
+        echo "-----END PUBLIC KEY-----"
+    } > "$pubkey_file" 2>/dev/null || {
+        err "failed to create PEM public key"
+        return 1
+    }
+
+    rm -f "$tmp_raw"
+
+    # Decode signature (64 bytes for Ed25519)
     printf '%s' "$SIGNATURE_B64" | base64 -d > "$sig_file" 2>/dev/null || {
         err "failed to decode embedded signature"
         return 1
@@ -113,10 +131,9 @@ _verify_signature() {
     openssl dgst -sha256 -binary "$manifest_file" > "$tmp/manifest.sha" 2>/dev/null || return 2
 
     # compute payload sha256 (binary). We already have the payload hash HEX (APP_PAYLOAD_HASH).
-    # Recompute binary form from hex:
-    # convert hex -> binary
-    printf '%s' "$APP_PAYLOAD_HASH" | sed 's/../\\x&/g' | xargs printf > "$tmp/payload.sha" 2>/dev/null || {
-        # alternative: compute actual binary sha256 by decoding the payload stream
+    # convert hex -> binary using printf %b with escape sequences
+    printf '%b' "$(printf '%s' "$APP_PAYLOAD_HASH" | sed 's/\(..\)/\\x\1/g')" > "$tmp/payload.sha" 2>/dev/null || {
+        # fallback: compute actual binary sha256 by decoding the payload stream
         start=$( _payload_start_line )
         tail -n +"$start" "$SELF" | base64 -d 2>/dev/null | openssl dgst -sha256 -binary -out "$tmp/payload.sha" 2>/dev/null || return 2
     }
@@ -124,11 +141,9 @@ _verify_signature() {
     # concat manifest.sha || payload.sha
     cat "$tmp/manifest.sha" "$tmp/payload.sha" > "$tmp/combined.sha"
 
-    # Try pkeyutl verify
+    # Try pkeyutl verify with -rawin (required for Ed25519 - uses raw message, not digest)
     if command -v openssl >/dev/null 2>&1; then
-        # Some OpenSSL versions expect a PEM public key for Ed25519.
-        # If pubkey is a raw key, this may fail and verification will return non-zero.
-        if openssl pkeyutl -verify -pubin -inkey "$pubkey_file" -sigfile "$sig_file" -in "$tmp/combined.sha" >/dev/null 2>&1; then
+        if openssl pkeyutl -verify -pubin -inkey "$pubkey_file" -sigfile "$sig_file" -rawin -in "$tmp/combined.sha" >/dev/null 2>&1; then
             return 0
         else
             return 1
@@ -162,18 +177,7 @@ if [ -d "$INSTALL_DIR" ]; then
     SECUNDO_ORIGINAL_PWD="$ORIGINAL_PWD" exec $INTERPRETER $INTERPRETER_ARGS_LIST "$ENTRY" "$@"
 fi
 
-# Installation path does not exist: verify payload hash before extraction
-# Note: Payload hash check is skipped because the manifest is embedded in the payload,
-# which changes the hash. Signature verification provides integrity instead.
-# computed_hash=$( _compute_payload_sha256_hex ) || {
-#     err "failed to compute payload hash"
-#     exit 2
-# }
-#
-# if [ "$computed_hash" != "$APP_PAYLOAD_HASH" ]; then
-#     err "payload hash mismatch (computed: $computed_hash, expected: $APP_PAYLOAD_HASH)"
-#     exit 2
-# fi
+# Installation path does not exist: extract and verify
 
 # create parent directory for install
 safe_mkdirp "$(dirname "$INSTALL_DIR")"
@@ -198,23 +202,39 @@ if [ ! -f "$MANIFEST_PATH" ]; then
     exit 1
 fi
 
-# signature verification (best-effort)
-# TODO: Signature verification needs to exclude signature/publicKey fields from manifest hash
-# For now, skip verification and rely on payload hash check
-# TMP_SIG_DIR="$(mktemp -d "${TMPDIR%/}/secundo-sig-XXXX")" || TMP_SIG_DIR="$TMP_EXTRACT_DIR"
-# _verify_signature "$TMP_SIG_DIR" "$MANIFEST_PATH"
-# sig_status=$?
-# if [ $sig_status -eq 0 ]; then
-#     : # signature valid
-# elif [ $sig_status -eq 1 ]; then
-#     err "signature verification failed"
-#     rm -rf "$TMP_EXTRACT_DIR"
-#     rm -rf "$TMP_SIG_DIR"
-#     exit 1
-# else
-#     # openssl not available or verification could not be completed — proceed with caution
-#     err "warning: signature verification unavailable; proceeding (missing/unsupported openssl?)"
-# fi
+# signature verification
+# The manifest inside the payload is unsigned (no signature/publicKey fields).
+# We verify: SHA256(manifest.json) || SHA256(payload-hash) using signature from stub.
+TMP_SIG_DIR="$(mktemp -d "${TMPDIR%/}/secundo-sig-XXXX")" || TMP_SIG_DIR="$TMP_EXTRACT_DIR"
+
+# Write public key and signature to temp files
+_write_pub_and_sig "$TMP_SIG_DIR" >/dev/null || {
+    err "failed to prepare signature verification files"
+    rm -rf "$TMP_EXTRACT_DIR"
+    [ "$TMP_SIG_DIR" != "$TMP_EXTRACT_DIR" ] && rm -rf "$TMP_SIG_DIR" || true
+    exit 1
+}
+
+# Temporarily disable exit-on-error for verification (we handle the error ourselves)
+set +e
+_verify_signature "$TMP_SIG_DIR" "$MANIFEST_PATH"
+sig_status=$?
+set -e
+
+# Clean up signature temp dir if different from extract dir
+[ "$TMP_SIG_DIR" != "$TMP_EXTRACT_DIR" ] && rm -rf "$TMP_SIG_DIR" 2>/dev/null || true
+
+if [ $sig_status -eq 0 ]; then
+    : # signature valid
+elif [ $sig_status -eq 1 ]; then
+    err "signature verification failed - the executable may be corrupted or tampered with"
+    rm -rf "$TMP_EXTRACT_DIR"
+    exit 1
+else
+    # openssl not available or verification could not be completed
+    err "warning: signature verification unavailable (openssl not found or unsupported)"
+    err "warning: proceeding without verification - use at your own risk"
+fi
 
 # move tmp extract into final install dir atomically
 if ! mv "$TMP_EXTRACT_DIR" "$INSTALL_DIR"; then

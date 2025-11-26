@@ -50,10 +50,25 @@ function displayAdditionalMetadata(manifest: SecundoManifest): void {
   }
 }
 
+const HELP = `
+secundo inspect - Show manifest and verify .sec file
+
+USAGE:
+  secundo inspect <file.sec>
+
+DESCRIPTION:
+  Parses a .sec file and displays its manifest information,
+  execution details, and signature verification status.
+
+EXAMPLES:
+  secundo inspect myapp.sec
+  secundo inspect ./dist/bundle.sec
+`
+
 export async function inspect(args: string[]): Promise<void> {
-  if (args.length === 0) {
-    console.error('Usage: secundo inspect <file.sec>')
-    process.exit(1)
+  if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
+    console.log(HELP)
+    process.exit(args.length === 0 ? 1 : 0)
   }
 
   const file = args[0]

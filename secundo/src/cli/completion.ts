@@ -1,9 +1,31 @@
+const HELP = `
+secundo completion - Generate shell completion script
+
+USAGE:
+  secundo completion <shell>
+
+SUPPORTED SHELLS:
+  zsh     Zsh completion
+  bash    Bash completion
+
+INSTALLATION:
+  # Zsh (add to ~/.zshrc):
+  secundo completion zsh > /usr/local/share/zsh/site-functions/_secundo
+
+  # Bash (add to ~/.bashrc):
+  source <(secundo completion bash)
+`
+
 export async function completion(args: string[]): Promise<void> {
+  if (args[0] === '--help' || args[0] === '-h') {
+    console.log(HELP)
+    process.exit(0)
+  }
+
   const shell = args[0]
 
   if (!shell || (shell !== 'zsh' && shell !== 'bash')) {
-    console.error('Usage: secundo completion <shell>')
-    console.error('Supported shells: zsh, bash')
+    console.log(HELP)
     process.exit(1)
   }
 

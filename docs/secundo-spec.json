@@ -37,6 +37,17 @@
     "metadata": {
       "type": "object",
       "additionalProperties": true
+    },
+    "packFolder": {
+      "type": "string",
+      "description": "Subfolder to pack (e.g., 'dist' or 'build'). Entry path is relative to this folder. Defaults to project root."
+    },
+    "testArgs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Arguments to test the application. After packing, both the original and packed app are run with these args, and their outputs must match."
     }
   }
 }
