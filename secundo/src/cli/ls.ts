@@ -10,6 +10,49 @@ interface InstalledApp {
   hash: string
 }
 
+async function readManifestForHash(appDir: string, hash: string): Promise<InstalledApp | null> {
+  if (hash === 'current') return null
+
+  const manifestPath = join(appDir, hash, '.secundo', 'manifest.json')
+
+  if (!await fileExists(manifestPath)) {
+    return null
+  }
+
+  try {
+    const manifestContent = await readFile(manifestPath, 'utf-8')
+    const manifest: SecundoManifest = JSON.parse(manifestContent)
+
+    return {
+      appId: manifest.appId,
+      version: manifest.version,
+      hash: hash
+    }
+  } catch {
+    return null
+  }
+}
+
+async function scanAppDirectory(libDir: string, appId: string): Promise<InstalledApp[]> {
+  const appDir = join(libDir, appId)
+  const apps: InstalledApp[] = []
+
+  try {
+    const hashes = await readdir(appDir)
+
+    for (const hash of hashes) {
+      const app = await readManifestForHash(appDir, hash)
+      if (app) {
+        apps.push(app)
+      }
+    }
+  } catch {
+    // Skip directories we can't read
+  }
+
+  return apps
+}
+
 async function getInstalledApps(): Promise<InstalledApp[]> {
   const libDir = join(homedir(), '.secundo', 'lib')
 
@@ -17,46 +60,19 @@ async function getInstalledApps(): Promise<InstalledApp[]> {
     return []
   }
 
-  const apps: InstalledApp[] = []
-
   try {
     const appIds = await readdir(libDir)
+    const allApps: InstalledApp[] = []
 
     for (const appId of appIds) {
-      const appDir = join(libDir, appId)
-
-      try {
-        const hashes = await readdir(appDir)
-
-        for (const hash of hashes) {
-          if (hash === 'current') continue
-
-          const manifestPath = join(appDir, hash, '.secundo', 'manifest.json')
-
-          if (await fileExists(manifestPath)) {
-            try {
-              const manifestContent = await readFile(manifestPath, 'utf-8')
-              const manifest: SecundoManifest = JSON.parse(manifestContent)
-
-              apps.push({
-                appId: manifest.appId,
-                version: manifest.version,
-                hash: hash
-              })
-            } catch {
-              // Skip invalid manifests
-            }
-          }
-        }
-      } catch {
-        // Skip directories we can't read
-      }
+      const apps = await scanAppDirectory(libDir, appId)
+      allApps.push(...apps)
     }
+
+    return allApps
   } catch {
     return []
   }
-
-  return apps
 }
 
 function formatAsTable(apps: InstalledApp[]): void {

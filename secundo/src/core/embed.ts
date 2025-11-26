@@ -1,14 +1,13 @@
-import { readFile, writeFile, chmod } from 'node:fs/promises'
-import { join } from 'node:path'
+import { writeFile, chmod } from 'node:fs/promises'
 import type { SecundoManifest } from '../util/types.js'
+import stubTemplate from '../stub/posix-extractor.sh'
 
 export async function embedPayload(
   manifest: SecundoManifest,
   payload: string,
   outputPath: string
 ): Promise<void> {
-  const stubPath = join(process.cwd(), '..', 'docs', 'posix-extractor.sh')
-  let stub = await readFile(stubPath, 'utf-8')
+  let stub = stubTemplate
 
   stub = stub.replaceAll('__SECUNDO_APP_ID__', manifest.appId)
   stub = stub.replaceAll('__SECUNDO_PAYLOAD_HASH__', manifest.hash)
@@ -23,7 +22,7 @@ export async function embedPayload(
 
   const markerLine = '__SECUNDO_PAYLOAD__'
   const lines = stub.split('\n')
-  const markerIndex = lines.findIndex(line => line.trim() === markerLine)
+  const markerIndex = lines.findIndex((line: string) => line.trim() === markerLine)
 
   if (markerIndex === -1) {
     throw new Error('Payload marker not found in stub template')

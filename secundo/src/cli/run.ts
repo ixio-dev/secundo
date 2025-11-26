@@ -8,20 +8,15 @@ import { spawn } from 'node:child_process'
 import { Readable } from 'node:stream'
 import { parseSecFile } from '../core/sec-parser.js'
 
-async function extractPayloadToTemp(payload: string): Promise<string> {
-  const tempDir = join(tmpdir(), `secundo-run-${Date.now()}-${Math.random().toString(36).slice(2)}`)
-  await mkdir(tempDir, { recursive: true })
-
+async function decompressToTar(payload: string, tarPath: string): Promise<void> {
   const decoded = Buffer.from(payload, 'base64')
-  const tarPath = join(tempDir, 'payload.tar')
   const readable = Readable.from(decoded)
   const gunzip = createGunzip()
   const writable = createWriteStream(tarPath)
   await pipeline(readable, gunzip, writable)
+}
 
-  const extractDir = join(tempDir, 'extracted')
-  await mkdir(extractDir, { recursive: true })
-
+async function extractTarToDirectory(tarPath: string, extractDir: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const tar = spawn('tar', ['-xf', tarPath], {
       cwd: extractDir,
@@ -43,6 +38,18 @@ async function extractPayloadToTemp(payload: string): Promise<string> {
 
     tar.on('error', reject)
   })
+}
+
+async function extractPayloadToTemp(payload: string): Promise<string> {
+  const tempDir = join(tmpdir(), `secundo-run-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+  await mkdir(tempDir, { recursive: true })
+
+  const tarPath = join(tempDir, 'payload.tar')
+  await decompressToTar(payload, tarPath)
+
+  const extractDir = join(tempDir, 'extracted')
+  await mkdir(extractDir, { recursive: true })
+  await extractTarToDirectory(tarPath, extractDir)
 
   return extractDir
 }
@@ -74,6 +81,13 @@ async function executeInDirectory(
   })
 }
 
+async function cleanupAndExit(extractDir: string | null, exitCode: number): Promise<void> {
+  if (extractDir) {
+    await rm(extractDir, { recursive: true, force: true }).catch(() => {})
+  }
+  process.exit(exitCode)
+}
+
 export async function run(args: string[]): Promise<void> {
   if (args.length === 0) {
     console.error('Usage: secundo run <file.sec> [args]')
@@ -82,7 +96,6 @@ export async function run(args: string[]): Promise<void> {
 
   const file = args[0]
   const userArgs = args.slice(1)
-
   let extractDir: string | null = null
 
   try {
@@ -97,19 +110,14 @@ export async function run(args: string[]): Promise<void> {
       userArgs
     )
 
-    await rm(extractDir, { recursive: true, force: true })
-    process.exit(exitCode)
+    await cleanupAndExit(extractDir, exitCode)
 
   } catch (error) {
-    if (extractDir) {
-      await rm(extractDir, { recursive: true, force: true }).catch(() => {})
-    }
-
     if (error instanceof Error) {
       console.error(`Error: ${error.message}`)
     } else {
       console.error('Unknown error occurred')
     }
-    process.exit(1)
+    await cleanupAndExit(extractDir, 1)
   }
 }

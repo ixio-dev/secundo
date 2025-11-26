@@ -6,6 +6,7 @@ import { run } from './cli/run.js'
 import { ls } from './cli/ls.js'
 import { uninstall } from './cli/uninstall.js'
 import { completion } from './cli/completion.js'
+import { schema } from './cli/schema.js'
 
 const USAGE = `
 secundo v0.1.0 - Single-file executable packer
@@ -18,6 +19,7 @@ USAGE:
   secundo ls                              List installed apps
   secundo uninstall <appId>               Remove installed app
   secundo completion <shell>              Generate shell completion script
+  secundo schema                          Output JSON schema for secundo.spec
 
 PACK OPTIONS:
   --id <appId>            Override autodetected appId
@@ -79,6 +81,9 @@ async function main() {
         break
       case 'completion':
         await completion(commandArgs)
+        break
+      case 'schema':
+        await schema(commandArgs)
         break
       default:
         console.error(`Unknown command: ${command}`)

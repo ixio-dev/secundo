@@ -82,42 +82,49 @@ function extractShellVar(content: string, varName: string): string {
   return match[1].replace(/^["']|["']$/g, '')
 }
 
+async function decompressPayload(payload: string, tarPath: string): Promise<void> {
+  const decoded = Buffer.from(payload, 'base64')
+  const readable = Readable.from(decoded)
+  const gunzip = createGunzip()
+  const writable = createWriteStream(tarPath)
+  await pipeline(readable, gunzip, writable)
+}
+
+async function extractManifestFromTar(tarPath: string, extractDir: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const tar = spawn('tar', ['-xf', tarPath, '.secundo/manifest.json'], {
+      cwd: extractDir,
+      stdio: ['ignore', 'pipe', 'pipe']
+    })
+
+    let stderr = ''
+    tar.stderr?.on('data', (data) => {
+      stderr += data.toString()
+    })
+
+    tar.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`tar extraction failed: ${stderr}`))
+      } else {
+        resolve()
+      }
+    })
+
+    tar.on('error', reject)
+  })
+}
+
 export async function extractManifest(payload: string): Promise<SecundoManifest> {
   const tempDir = join(tmpdir(), `secundo-extract-${Date.now()}`)
   await mkdir(tempDir, { recursive: true })
 
   try {
-    const decoded = Buffer.from(payload, 'base64')
     const tarPath = join(tempDir, 'payload.tar')
-    const readable = Readable.from(decoded)
-    const gunzip = createGunzip()
-    const writable = createWriteStream(tarPath)
-    await pipeline(readable, gunzip, writable)
+    await decompressPayload(payload, tarPath)
 
     const extractDir = join(tempDir, 'extracted')
     await mkdir(extractDir, { recursive: true })
-
-    await new Promise<void>((resolve, reject) => {
-      const tar = spawn('tar', ['-xf', tarPath, '.secundo/manifest.json'], {
-        cwd: extractDir,
-        stdio: ['ignore', 'pipe', 'pipe']
-      })
-
-      let stderr = ''
-      tar.stderr?.on('data', (data) => {
-        stderr += data.toString()
-      })
-
-      tar.on('close', (code) => {
-        if (code !== 0) {
-          reject(new Error(`tar extraction failed: ${stderr}`))
-        } else {
-          resolve()
-        }
-      })
-
-      tar.on('error', reject)
-    })
+    await extractManifestFromTar(tarPath, extractDir)
 
     const manifestPath = join(extractDir, '.secundo', 'manifest.json')
     const manifestContent = await readFile(manifestPath, 'utf-8')

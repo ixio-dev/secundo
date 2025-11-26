@@ -27,6 +27,7 @@ _secundo() {
     'ls:List installed applications'
     'uninstall:Remove an installed application'
     'completion:Generate shell completion script'
+    'schema:Output JSON schema for secundo.spec'
   )
 
   local -a pack_options
@@ -84,7 +85,7 @@ function generateBashCompletion(): void {
   COMPREPLY=()
   cur="\${COMP_WORDS[COMP_CWORD]}"
   prev="\${COMP_WORDS[COMP_CWORD-1]}"
-  commands="pack inspect verify run ls uninstall completion"
+  commands="pack inspect verify run ls uninstall completion schema"
 
   case "\${COMP_CWORD}" in
     1)

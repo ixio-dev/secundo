@@ -17,7 +17,11 @@ const buildOptions = {
   external: [],
   minify: !isWatch,
   sourcemap: isWatch,
-  logLevel: 'info'
+  logLevel: 'info',
+  loader: {
+    '.sh': 'text',
+    '.json': 'text'
+  }
 }
 
 if (isWatch) {
