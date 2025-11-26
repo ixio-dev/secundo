@@ -21,6 +21,14 @@ This document tracks all pending tasks to ensure the project follows coding rule
 - [x] Implement ls command - list installed applications
 - [x] Implement uninstall command - remove installed apps
 - [x] Create shared sec-parser module (DRY principle)
+- [x] Refactor all CLI commands to comply with function size guidelines
+- [x] Move POSIX stub to src/stub and inline in build
+- [x] Move secundo-spec.json to src/schema and inline in build
+- [x] Add `secundo schema` command to output JSON schema
+- [x] Add tests for core/scan.ts (10 tests)
+- [x] Add tests for core/manifest.ts (4 tests)
+- [x] Add tests for core/signer.ts (6 tests)
+- [x] Update completion scripts for new schema command
 
 ## 🔴 Critical - Rule Compliance
 
@@ -48,17 +56,27 @@ Priority: HIGH - User emphasized this is IMPORTANT
 - [x] ~~Refactor `listFilesRecursive()` in `util/fs.ts`~~ **DONE** - Split into 2 helpers
   - ✅ shouldIgnoreEntry() - Filter logic
   - ✅ processDirectoryEntries() - Entry processing
+- [x] ~~Refactor CLI command functions~~ **DONE** - All functions now < 30 lines
+  - ✅ parseSecFile() - Split into findPayloadMarker + buildMetadataFromHeader
+  - ✅ extractManifest() - Split into decompressPayload + extractManifestFromTar
+  - ✅ inspect() - Split into display* helper functions
+  - ✅ extractPayloadToTemp() - Split into decompressToTar + extractTarToDirectory
+  - ✅ run() - Added cleanupAndExit helper
+  - ✅ getInstalledApps() - Split into readManifestForHash + scanAppDirectory
 
 ### Testing
-- [ ] Add tests for `core/scan.ts`
-- [ ] Add tests for `core/detect.ts`
-- [ ] Add tests for `core/manifest.ts`
-- [ ] Add tests for `core/signer.ts`
-- [ ] Add tests for `core/payload.ts` and `core/payload-helper.ts`
-- [ ] Add tests for `core/embed.ts`
-- [ ] Add tests for `util/fs.ts`
-- [ ] Add integration tests for full pack workflow
+- [x] ~~Add tests for `core/scan.ts`~~ **DONE** - 10 tests (project scanning)
+- [x] ~~Add tests for `core/detect.ts`~~ **DONE** - 12 tests (autodetection logic)
+- [x] ~~Add tests for `core/manifest.ts`~~ **DONE** - 4 tests (manifest building)
+- [x] ~~Add tests for `core/signer.ts`~~ **DONE** - 6 tests (signature verification)
+- [x] ~~Add tests for `core/payload-helper.ts`~~ **DONE** - 13 tests (tarball creation, compression, encoding)
+- [x] ~~Add tests for `core/embed.ts`~~ **DONE** - 8 tests (payload embedding, placeholder replacement)
+- [x] ~~Add tests for `core/sec-parser.ts`~~ **DONE** - 12 tests (parsing, signature verification)
+- [x] ~~Add tests for `util/fs.ts`~~ **DONE** - 25 tests (file operations, YAML parsing)
+- [x] ~~Add integration tests for full pack workflow~~ **DONE** - 4 tests (end-to-end)
 - [ ] Add CLI command tests (pack, inspect, verify, run, ls, uninstall)
+
+**Current Test Count: 126 tests passing** (up from 68, 85% increase)
 
 ## 🟡 High Priority - PRD Core Requirements
 
@@ -97,7 +115,7 @@ Priority: HIGH - User emphasized this is IMPORTANT
 
 ### Core Infrastructure
 
-- [x] ~~Create POSIX shell stub template~~ **DONE** - `docs/posix-extractor.sh` exists and works
+- [x] ~~Create POSIX shell stub template~~ **DONE** - Now at `src/stub/posix-extractor.sh` and inlined in build
   - ✅ Self-extraction logic
   - ✅ Base64 decode
   - ✅ Gzip decompress
@@ -139,11 +157,13 @@ Priority: HIGH - User emphasized this is IMPORTANT
   - ✅ Bash completion with full command support
   - ✅ File and directory completion where appropriate
 - [x] ~~Document completion installation~~ **DONE** - Added to help text
+- [x] ~~Add schema command to completions~~ **DONE**
 - [ ] Test completion in multiple shells (manual verification needed)
 
 ## 🔵 Nice-to-Have - Additional Features
 
 ### Development Experience
+- [x] ~~Add `secundo schema` command~~ **DONE** - Outputs JSON schema for secundo.spec
 - [ ] Add `--verbose` flag for debugging
 - [ ] Add progress indicators for long operations
 - [ ] Improve error messages with suggestions
@@ -204,18 +224,40 @@ These are explicitly out of scope per PRD, but tracked for future consideration:
 
 ## Priority Order for Implementation
 
-1. **CRITICAL**: Refactor large functions (rule compliance)
-2. **HIGH**: Implement missing CLI commands (PRD requirements)
-3. **HIGH**: Create POSIX stub template (core functionality)
-4. **MEDIUM**: Add help and completion (user preferences)
-5. **MEDIUM**: Complete test coverage
+1. ~~**CRITICAL**: Refactor large functions (rule compliance)~~ ✅ **DONE**
+2. ~~**HIGH**: Implement missing CLI commands (PRD requirements)~~ ✅ **DONE**
+3. ~~**HIGH**: Create POSIX stub template (core functionality)~~ ✅ **DONE**
+4. ~~**MEDIUM**: Add help and completion (user preferences)~~ ✅ **DONE**
+5. ~~**MEDIUM**: Complete core test coverage~~ ✅ **MOSTLY DONE** (126 tests, only CLI commands remain)
 6. **LOW**: Nice-to-have features
 7. **FUTURE**: Out of scope items
 
 ## Notes
 
 - Always run `npm run typecheck` and `npm test` before committing
-- Follow file size guideline: ~200 lines per file
-- Follow function size guideline: ~30 lines per function
+- Follow file size guideline: ~200 lines per file ✅
+- Follow function size guideline: ~30 lines per function ✅
 - No TODOs in code - use this file instead
 - Update this TODO as work progresses
+
+## Recent Session Summary (2025-11-26)
+
+**Completed:**
+- ✅ All 5 CLI commands (inspect, verify, run, ls, uninstall)
+- ✅ Refactored 11 functions to comply with size guidelines
+- ✅ Moved assets to src/ and inlined in build (stub + schema)
+- ✅ Added `secundo schema` command
+- ✅ **MAJOR TEST COVERAGE EXPANSION**: Added 58 new tests (126 total, all passing)
+  - Created comprehensive tests for core/payload-helper.ts (13 tests)
+  - Created comprehensive tests for core/embed.ts (8 tests)
+  - Created comprehensive tests for core/sec-parser.ts (12 tests)
+  - Created comprehensive tests for util/fs.ts (25 tests)
+  - Fixed pre-existing test failures in detect.test.ts
+  - Enhanced YAML parser to support arrays and nested objects
+  - Fixed shell interpreter detection (sh instead of /bin/sh)
+  - Created vitest.config.ts for .sh file handling
+- ✅ Build size: 39.2 KB (fully self-contained)
+
+**Next Priority:**
+- Add CLI command tests (pack, inspect, verify, run, ls, uninstall)
+- Consider adding validation using the JSON schema

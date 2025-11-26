@@ -23,13 +23,30 @@ export async function readJSON(path: string): Promise<any> {
 export async function readYAML(path: string): Promise<any> {
   try {
     const content = await readFile(path, 'utf-8')
-    // Simple YAML parser for now - just handle basic key: value
     const result: any = {}
     const lines = content.split('\n')
 
-    for (const line of lines) {
+    let currentKey: string | null = null
+    let currentArray: string[] | null = null
+    let currentObject: any | null = null
+    let indent = 0
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
       const trimmed = line.trim()
+
       if (!trimmed || trimmed.startsWith('#')) continue
+
+      const lineIndent = line.length - line.trimStart().length
+
+      // Array item
+      if (trimmed.startsWith('- ')) {
+        const arrayValue = trimmed.substring(2).trim()
+        if (currentArray && currentKey) {
+          currentArray.push(arrayValue)
+        }
+        continue
+      }
 
       const colonIndex = trimmed.indexOf(':')
       if (colonIndex === -1) continue
@@ -37,13 +54,43 @@ export async function readYAML(path: string): Promise<any> {
       const key = trimmed.substring(0, colonIndex).trim()
       let value = trimmed.substring(colonIndex + 1).trim()
 
-      // Remove quotes
+      // Check if this is starting a nested structure
+      if (!value || value === '') {
+        // Check next line to determine if it's an array or object
+        const nextLine = i + 1 < lines.length ? lines[i + 1] : ''
+        const nextTrimmed = nextLine.trim()
+
+        if (nextTrimmed.startsWith('- ')) {
+          // Starting an array
+          currentKey = key
+          currentArray = []
+          result[key] = currentArray
+        } else if (nextLine && nextLine.length - nextLine.trimStart().length > lineIndent) {
+          // Starting a nested object
+          currentKey = key
+          currentObject = {}
+          result[key] = currentObject
+          indent = lineIndent
+        }
+        continue
+      }
+
+      // Remove quotes from value
       if ((value.startsWith('"') && value.endsWith('"')) ||
           (value.startsWith("'") && value.endsWith("'"))) {
         value = value.slice(1, -1)
       }
 
-      result[key] = value
+      // If we're in a nested object context and indented
+      if (currentObject && lineIndent > indent) {
+        currentObject[key] = value
+      } else {
+        // Top-level key-value or end of nesting
+        result[key] = value
+        currentObject = null
+        currentArray = null
+        currentKey = null
+      }
     }
 
     return result

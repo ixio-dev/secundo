@@ -24,7 +24,7 @@ export function resolveInterpreter(spec: SecundoSpec | null, meta: ProjectMeta):
   }
 
   if (meta.shFiles.length > 0 || meta.executableScripts.length > 0) {
-    return '/bin/sh'
+    return 'sh'
   }
 
   throw new Error('Could not detect interpreter. Please specify in secundo.spec')

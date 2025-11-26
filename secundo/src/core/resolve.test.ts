@@ -89,7 +89,7 @@ describe('resolve utilities', () => {
         shFiles: ['script.sh'],
         executableScripts: []
       }
-      expect(resolveInterpreter(null, meta)).toBe('/bin/sh')
+      expect(resolveInterpreter(null, meta)).toBe('sh')
     })
 
     it('should throw when no interpreter can be detected', () => {
