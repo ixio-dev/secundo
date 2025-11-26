@@ -1,17 +1,5 @@
 #!/bin/sh
-# Secundo extractor stub — POSIX /bin/sh compatible
-#
-# Placeholders (pack replaces these with real values):
-#   __SECUNDO_APP_ID__
-#   __SECUNDO_PAYLOAD_HASH__    (hex sha256 of payload, lowercase)
-#   __SECUNDO_PUBKEY_B64__     (base64 of ed25519 public key in PEM or raw format)
-#   __SECUNDO_SIGNATURE_B64__  (base64 signature over manifest+payload-hash)
-#   __SECUNDO_ENTRY__          (entry file, relative to extracted root)
-#   __SECUNDO_INTERPRETER__    (command to execute the entry, e.g. "ts-node" or "node")
-#   __SECUNDO_INTERPRETER_ARGS__ (JSON array literal, e.g. ["--transpile-only"])
-#
-# Payload marker (literal) must appear exactly as below, followed by base64(gzip(tar(...)))
-# __SECUNDO_PAYLOAD__
+# Packed with secundo - https://github.com/ixio/secundo
 
 set -eu
 

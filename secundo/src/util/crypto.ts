@@ -14,12 +14,10 @@ export interface KeyPair {
 }
 
 export async function ensureKeyPair(): Promise<KeyPair> {
-  // Check if keys already exist
   if (await fileExists(PRIVATE_KEY_FILE) && await fileExists(PUBLIC_KEY_FILE)) {
     return await loadKeyPair()
   }
 
-  // Generate new key pair
   return await generateAndSaveKeyPair()
 }
 

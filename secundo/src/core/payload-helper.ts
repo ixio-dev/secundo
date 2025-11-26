@@ -14,7 +14,6 @@ export async function createProjectTarball(projectDir: string): Promise<{ tarPat
 
   const tarPath = join(tempDir, 'project.tar')
 
-  // Create tarball
   await new Promise<void>((resolve, reject) => {
     const tar = spawn('tar', [
       '-cf',
@@ -45,14 +44,12 @@ export async function createProjectTarball(projectDir: string): Promise<{ tarPat
     tar.on('error', reject)
   })
 
-  // Gzip it to compute hash
   const gzipPath = `${tarPath}.gz`
   const input = createReadStream(tarPath)
   const output = createWriteStream(gzipPath)
   const gzip = createGzip({ level: 9 })
   await pipeline(input, gzip, output)
 
-  // Compute hash of gzipped tarball
   const gzipped = await readFile(gzipPath)
   const hash = sha256Hex(gzipped)
 
@@ -71,13 +68,11 @@ export async function addManifestToTarball(
   await mkdir(tempDir, { recursive: true })
 
   try {
-    // Create manifest directory structure
     const secundoDir = join(tempDir, '.secundo')
     await mkdir(secundoDir, { recursive: true })
     const manifestPath = join(secundoDir, 'manifest.json')
     await writeFile(manifestPath, manifestJson)
 
-    // Add to tarball
     await new Promise<void>((resolve, reject) => {
       const tar = spawn('tar', [
         '-rf',

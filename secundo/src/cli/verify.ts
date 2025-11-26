@@ -1,3 +1,5 @@
+import { parseSecFile, extractManifest, verifySignature } from '../core/sec-parser.js'
+
 export async function verify(args: string[]): Promise<void> {
   if (args.length === 0) {
     console.error('Usage: secundo verify <file.sec>')
@@ -5,6 +7,18 @@ export async function verify(args: string[]): Promise<void> {
   }
 
   const file = args[0]
-  console.log('Verify command not yet implemented')
-  console.log('File:', file)
+
+  try {
+    const { metadata, payload } = await parseSecFile(file)
+    const manifest = await extractManifest(payload)
+    const isValid = await verifySignature(metadata, manifest)
+
+    if (isValid) {
+      process.exit(0)
+    } else {
+      process.exit(1)
+    }
+  } catch (error) {
+    process.exit(2)
+  }
 }

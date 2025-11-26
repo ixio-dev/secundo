@@ -3,32 +3,26 @@ import type { ProjectMeta, SecundoSpec } from '../util/types.js'
 import { fileExists } from '../util/fs.js'
 
 export function resolveInterpreter(spec: SecundoSpec | null, meta: ProjectMeta): string {
-  // Spec override takes precedence
   if (spec?.interpreter) {
     return spec.interpreter
   }
 
-  // TypeScript project
   if (meta.tsconfig || meta.tsFiles.length > 0) {
     return 'ts-node'
   }
 
-  // Node.js project
   if (meta.packageJson) {
     return 'node'
   }
 
-  // Python project
   if (meta.pyproject || meta.requirementsTxt || meta.pyFiles.length > 0) {
     return 'python3'
   }
 
-  // Ruby project
   if (meta.rbFiles.length > 0) {
     return 'ruby'
   }
 
-  // Shell scripts
   if (meta.shFiles.length > 0 || meta.executableScripts.length > 0) {
     return '/bin/sh'
   }
@@ -156,22 +150,18 @@ export function resolveAppId(
 }
 
 export function resolveVersion(spec: SecundoSpec | null, meta: ProjectMeta): string {
-  // Spec override
   if (spec?.version) {
     return spec.version
   }
 
-  // From package.json
   if (meta.packageJson?.version) {
     return meta.packageJson.version
   }
 
-  // From pyproject.toml
   if (meta.pyproject?.version || meta.pyproject?.['project.version']) {
     return meta.pyproject.version || meta.pyproject['project.version']
   }
 
-  // Default
   return '0.1.0'
 }
 
@@ -180,27 +170,22 @@ export function resolveName(
   meta: ProjectMeta,
   projectDir: string
 ): string {
-  // Spec override
   if (spec?.name) {
     return spec.name
   }
 
-  // From package.json
   if (meta.packageJson?.name) {
     return meta.packageJson.name
   }
 
-  // From pyproject.toml
   if (meta.pyproject?.name || meta.pyproject?.['project.name']) {
     return meta.pyproject.name || meta.pyproject['project.name']
   }
 
-  // Fallback: directory name
   return basename(projectDir)
 }
 
 export function resolveInterpreterArgs(spec: SecundoSpec | null, _meta: ProjectMeta): string[] {
-  // Spec override or default
   return spec?.interpreterArgs || []
 }
 

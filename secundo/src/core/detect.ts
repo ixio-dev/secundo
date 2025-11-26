@@ -12,13 +12,9 @@ import {
 } from './resolve.js'
 
 export async function detect(projectDir: string): Promise<DetectionResult> {
-  // Load spec if exists
   const spec = await loadSpec(projectDir)
-
-  // Scan project for metadata
   const meta = await scanProject(projectDir)
 
-  // Resolve all fields
   const result: DetectionResult = {
     appId: resolveAppId(spec, meta, projectDir),
     interpreter: resolveInterpreter(spec, meta),
