@@ -21,6 +21,9 @@
   ],
   "author": "Stefan",
   "license": "MIT",
+  "dependencies": {
+    "@noble/ed25519": "^2.1.0"
+  },
   "devDependencies": {
     "@types/node": "^20.10.0",
     "esbuild": "^0.19.8",
